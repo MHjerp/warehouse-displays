@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Warehouse Display</title>
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
+        #contentFrame { width: 100vw; height: 100vh; border: none; background: #fff; display: block; }
+        #gearBtn { position: absolute; bottom: 0; right: 0; width: 100px; height: 100px; z-index: 9999; cursor: default; }
+        #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        input { padding: 15px; width: 400px; margin-top: 10px; font-size: 18px; }
+        button { margin-top: 20px; padding: 15px 40px; font-size: 18px; background: #4285f4; color: white; border: none; cursor: pointer; }
+        .label { margin-top: 20px; color: #aaa; }
+    </style>
+</head>
+<body>
+    <iframe id="contentFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"></iframe>
+    
+    <div id="gearBtn" onclick="handleSecretClick()"></div>
+
+    <div id="settingsModal">
+        <h1>Display Settings</h1>
+        <div class="label">Target URL</div>
+        <input type="text" id="urlInput" placeholder="https://..." />
+        <div class="label">Refresh (Minutes) - 0 for off</div>
+        <input type="number" id="refreshInput" value="0" />
+        <button onclick="saveSettings()">Save & Launch</button>
+    </div>
+
+    <script>
+        const frame = document.getElementById('contentFrame');
+        const modal = document.getElementById('settingsModal');
+        let clicks = 0;
+        let refreshTimer = null;
+
+        // Boot Logic
+        const savedUrl = localStorage.getItem('kiosk_url');
+        const savedRefresh = localStorage.getItem('kiosk_refresh');
+
+        if (!savedUrl) {
+            modal.style.display = 'flex'; // Show setup on first run
+        } else {
+            launch(savedUrl, savedRefresh);
+        }
+
+        // Secret Click Logic (5 clicks bottom right)
+        function handleSecretClick() {
+            clicks++;
+            if (clicks >= 5) {
+                modal.style.display = 'flex';
+                document.getElementById('urlInput').value = localStorage.getItem('kiosk_url') || '';
+                document.getElementById('refreshInput').value = localStorage.getItem('kiosk_refresh') || '0';
+                clicks = 0;
+            }
+            setTimeout(() => { clicks = 0; }, 2000);
+        }
+
+        // Save Logic
+        function saveSettings() {
+            const url = document.getElementById('urlInput').value;
+            const refresh = document.getElementById('refreshInput').value;
+            if (url) {
+                localStorage.setItem('kiosk_url', url);
+                localStorage.setItem('kiosk_refresh', refresh);
+                location.reload();
+            }
+        }
+
+        // Launch Logic
+        function launch(url, refresh) {
+            setTimeout(() => { frame.src = url; }, 1000); // 1s delay for stability
+            if (refresh > 0) {
+                setInterval(() => { frame.src = frame.src; }, refresh * 60000);
+            }
+        }
+    </script>
+</body>
+</html>
