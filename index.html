@@ -4,19 +4,32 @@
     <meta charset="UTF-8">
     <title>Warehouse Display</title>
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; }
-        #contentFrame { width: 100vw; height: 100vh; border: none; background: #fff; display: block; }
-        #gearBtn { position: absolute; bottom: 0; right: 0; width: 100px; height: 100px; z-index: 9999; cursor: default; }
-        #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 10000; flex-direction: column; align-items: center; justify-content: center; color: white; }
+        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; background: #111; font-family: sans-serif; color: white; }
+        
+        /* Main Frame (For Slides) */
+        #contentFrame { width: 100vw; height: 100vh; border: none; background: #fff; display: none; }
+        
+        /* Settings Menu */
+        #settingsModal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #111; z-index: 10000; flex-direction: column; align-items: center; justify-content: center; }
         input { padding: 15px; width: 400px; margin-top: 10px; font-size: 18px; }
         button { margin-top: 20px; padding: 15px 40px; font-size: 18px; background: #4285f4; color: white; border: none; cursor: pointer; }
-        .label { margin-top: 20px; color: #aaa; }
+        .warning { color: #ff6b6b; font-size: 14px; margin-top: 15px; max-width: 400px; text-align: center; }
+
+        /* The Safety Countdown Screen */
+        #countdownScreen { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: #222; z-index: 20000; flex-direction: column; align-items: center; justify-content: center; }
+        .timer-text { font-size: 48px; font-weight: bold; margin-bottom: 20px; }
+        .cancel-btn { background: #d93025; padding: 20px 50px; font-size: 24px; color: white; border: none; border-radius: 8px; cursor: pointer; }
+        .cancel-btn:hover { background: #b02a20; }
     </style>
 </head>
 <body>
     <iframe id="contentFrame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"></iframe>
     
-    <div id="gearBtn" onclick="handleSecretClick()"></div>
+    <div id="countdownScreen">
+        <div class="timer-text" id="timerDisplay">Launching in 10</div>
+        <button class="cancel-btn" onclick="abortLaunch()">ABORT LAUNCH (RESET)</button>
+        <div class="warning">Click Abort to clear settings and enter a new URL.</div>
+    </div>
 
     <div id="settingsModal">
         <h1>Display Settings</h1>
@@ -30,47 +43,76 @@
     <script>
         const frame = document.getElementById('contentFrame');
         const modal = document.getElementById('settingsModal');
-        let clicks = 0;
-        let refreshTimer = null;
+        const countdownScreen = document.getElementById('countdownScreen');
+        const timerDisplay = document.getElementById('timerDisplay');
+        
+        let launchTimer = null;
+        let timeLeft = 10; // 10 Seconds to intervene
 
-        // Boot Logic
+        // BOOT LOGIC
         const savedUrl = localStorage.getItem('kiosk_url');
         const savedRefresh = localStorage.getItem('kiosk_refresh');
 
         if (!savedUrl) {
-            modal.style.display = 'flex'; // Show setup on first run
+            // Fresh device? Show setup immediately.
+            modal.style.display = 'flex';
         } else {
-            launch(savedUrl, savedRefresh);
+            // Configured device? Start the safety countdown.
+            startCountdown(savedUrl, savedRefresh);
         }
 
-        // Secret Click Logic (5 clicks bottom right)
-        function handleSecretClick() {
-            clicks++;
-            if (clicks >= 5) {
+        function startCountdown(url, refresh) {
+            countdownScreen.style.display = 'flex';
+            
+            launchTimer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = "Launching in " + timeLeft;
+                
+                if (timeLeft <= 0) {
+                    clearInterval(launchTimer);
+                    executeLaunch(url, refresh);
+                }
+            }, 1000);
+        }
+
+        function abortLaunch() {
+            clearInterval(launchTimer);
+            countdownScreen.style.display = 'none';
+            
+            // Wipe storage so we can start over
+            if(confirm("Clear saved settings?")) {
+                localStorage.clear();
                 modal.style.display = 'flex';
-                document.getElementById('urlInput').value = localStorage.getItem('kiosk_url') || '';
-                document.getElementById('refreshInput').value = localStorage.getItem('kiosk_refresh') || '0';
-                clicks = 0;
+            } else {
+                // User clicked cancel by accident? Resume.
+                location.reload();
             }
-            setTimeout(() => { clicks = 0; }, 2000);
         }
 
-        // Save Logic
         function saveSettings() {
             const url = document.getElementById('urlInput').value;
             const refresh = document.getElementById('refreshInput').value;
             if (url) {
                 localStorage.setItem('kiosk_url', url);
                 localStorage.setItem('kiosk_refresh', refresh);
-                location.reload();
+                location.reload(); // Reboot to trigger the countdown logic
             }
         }
 
-        // Launch Logic
-        function launch(url, refresh) {
-            setTimeout(() => { frame.src = url; }, 1000); // 1s delay for stability
-            if (refresh > 0) {
-                setInterval(() => { frame.src = frame.src; }, refresh * 60000);
+        function executeLaunch(url, refresh) {
+            countdownScreen.style.display = 'none';
+
+            // LOGIC: IFRAME vs REDIRECT
+            if (url.includes("docs.google.com") || url.includes("youtube.com")) {
+                // Iframe Mode
+                frame.style.display = 'block';
+                frame.src = url;
+                if (refresh > 0) {
+                    setInterval(() => { frame.src = frame.src; }, refresh * 60000);
+                }
+            } else {
+                // Redirect Mode (Internal Sites)
+                window.location.href = url;
             }
         }
     </script>
