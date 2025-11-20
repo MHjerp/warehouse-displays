@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <gupdate xmlns='http://www.google.com/update2/response' protocol='2.0'>
   <app appid="eoenbgdbcbopebaldcdboagflcfkchfl">
-    <updatecheck codebase="https://mhjerp.github.io/warehouse-kiosk/fix-headers.crx" version="1.0" />
+    <updatecheck codebase="https://mhjerp.github.io/warehouse-displays/fix-headers.crx" version="1.0" />
   </app>
 </gupdate>
